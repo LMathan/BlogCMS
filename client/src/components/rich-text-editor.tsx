@@ -53,10 +53,33 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   };
 
   const addImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            editor.chain().focus().setImage({ src: data.url }).run();
+          } else {
+            alert('Failed to upload image');
+          }
+        } catch (error) {
+          alert('Error uploading image');
+        }
+      }
+    };
+    input.click();
   };
 
   return (

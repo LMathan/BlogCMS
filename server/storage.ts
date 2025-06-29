@@ -1,9 +1,7 @@
-import { users, posts, type User, type InsertUser, type Post, type InsertPost, type UpdatePost } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { UserModel, PostModel, type User, type InsertUser, type Post, type InsertPost, type UpdatePost } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
@@ -11,75 +9,144 @@ export interface IStorage {
   getAllPosts(): Promise<Post[]>;
   getPublishedPosts(): Promise<Post[]>;
   getPostBySlug(slug: string): Promise<Post | undefined>;
-  getPostById(id: number): Promise<Post | undefined>;
+  getPostById(id: string): Promise<Post | undefined>;
   createPost(post: InsertPost): Promise<Post>;
-  updatePost(id: number, post: UpdatePost): Promise<Post | undefined>;
-  deletePost(id: number): Promise<boolean>;
+  updatePost(id: string, post: UpdatePost): Promise<Post | undefined>;
+  deletePost(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  async getUser(id: string): Promise<User | undefined> {
+    const user = await UserModel.findById(id).lean();
+    if (!user) return undefined;
+    return {
+      _id: user._id.toString(),
+      username: user.username,
+      password: user.password,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+    const user = await UserModel.findOne({ username }).lean();
+    if (!user) return undefined;
+    return {
+      _id: user._id.toString(),
+      username: user.username,
+      password: user.password,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
+    const user = new UserModel(insertUser);
+    await user.save();
+    return {
+      _id: user._id.toString(),
+      username: user.username,
+      password: user.password,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   async getAllPosts(): Promise<Post[]> {
-    return await db.select().from(posts).orderBy(desc(posts.createdAt));
+    const posts = await PostModel.find().sort({ createdAt: -1 }).lean();
+    return posts.map(post => ({
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
   }
 
   async getPublishedPosts(): Promise<Post[]> {
-    return await db.select().from(posts).where(eq(posts.published, true)).orderBy(desc(posts.createdAt));
+    const posts = await PostModel.find({ published: true }).sort({ createdAt: -1 }).lean();
+    return posts.map(post => ({
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
   }
 
   async getPostBySlug(slug: string): Promise<Post | undefined> {
-    const [post] = await db.select().from(posts).where(eq(posts.slug, slug));
-    return post || undefined;
+    const post = await PostModel.findOne({ slug }).lean();
+    if (!post) return undefined;
+    return {
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    };
   }
 
-  async getPostById(id: number): Promise<Post | undefined> {
-    const [post] = await db.select().from(posts).where(eq(posts.id, id));
-    return post || undefined;
+  async getPostById(id: string): Promise<Post | undefined> {
+    const post = await PostModel.findById(id).lean();
+    if (!post) return undefined;
+    return {
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    };
   }
 
   async createPost(insertPost: InsertPost): Promise<Post> {
-    const [post] = await db
-      .insert(posts)
-      .values({
-        ...insertPost,
-        updatedAt: new Date(),
-      })
-      .returning();
-    return post;
+    const post = new PostModel(insertPost);
+    await post.save();
+    return {
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    };
   }
 
-  async updatePost(id: number, updatePost: UpdatePost): Promise<Post | undefined> {
-    const [post] = await db
-      .update(posts)
-      .set({
-        ...updatePost,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, id))
-      .returning();
-    return post || undefined;
+  async updatePost(id: string, updatePost: UpdatePost): Promise<Post | undefined> {
+    const post = await PostModel.findByIdAndUpdate(
+      id,
+      updatePost,
+      { new: true }
+    ).lean();
+    if (!post) return undefined;
+    return {
+      _id: post._id.toString(),
+      title: post.title,
+      slug: post.slug,
+      content: post.content,
+      excerpt: post.excerpt || undefined,
+      published: post.published,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    };
   }
 
-  async deletePost(id: number): Promise<boolean> {
-    const result = await db.delete(posts).where(eq(posts.id, id));
-    return result.rowCount > 0;
+  async deletePost(id: string): Promise<boolean> {
+    const result = await PostModel.findByIdAndDelete(id);
+    return !!result;
   }
 }
 

@@ -5,8 +5,63 @@ import { insertPostSchema, updatePostSchema } from "@shared/schema";
 import { z } from "zod";
 import slugify from "slugify";
 import sanitizeHtml from "sanitize-html";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+
+// Configure multer for image uploads
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded images
+  app.use('/uploads', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  });
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Image upload endpoint
+  app.post("/api/upload", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file provided" });
+      }
+
+      const imageUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: imageUrl });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
   // Get all published posts for public view
   app.get("/api/posts", async (req, res) => {
     try {
@@ -51,11 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get post by ID for editing
   app.get("/api/admin/posts/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid post ID" });
-      }
-
+      const id = req.params.id;
       const post = await storage.getPostById(id);
       if (!post) {
         return res.status(404).json({ message: "Post not found" });
@@ -113,12 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const post = await storage.createPost(postData);
       res.status(201).json(post);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       
-      if (error.code === '23505') { // Unique constraint violation
+      if (error.code === 11000) { // MongoDB duplicate key error
         return res.status(400).json({ message: "A post with this slug already exists" });
       }
       
@@ -129,11 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update post
   app.put("/api/posts/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid post ID" });
-      }
-
+      const id = req.params.id;
       const validatedData = updatePostSchema.parse(req.body);
       
       // Generate slug from title if title is being updated
@@ -159,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
 
-        // Update excerpt if content is being updated
+        // Update excerpt if content is being updated and not provided
         if (!validatedData.excerpt) {
           const textContent = validatedData.content.replace(/<[^>]*>/g, '');
           validatedData.excerpt = textContent.length > 150 
@@ -174,12 +221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(post);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       
-      if (error.code === '23505') { // Unique constraint violation
+      if (error.code === 11000) { // MongoDB duplicate key error
         return res.status(400).json({ message: "A post with this slug already exists" });
       }
       
@@ -190,18 +237,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete post
   app.delete("/api/posts/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid post ID" });
-      }
-
+      const id = req.params.id;
       const deleted = await storage.deletePost(id);
       if (!deleted) {
         return res.status(404).json({ message: "Post not found" });
       }
 
       res.json({ message: "Post deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to delete post" });
     }
   });

@@ -26,7 +26,7 @@ export default function Admin() {
   });
 
   const deletePostMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/posts/${id}`);
     },
     onSuccess: () => {
@@ -45,7 +45,7 @@ export default function Admin() {
     },
   });
 
-  const handleDelete = (id: number, title: string) => {
+  const handleDelete = (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       deletePostMutation.mutate(id);
     }
@@ -211,7 +211,7 @@ export default function Admin() {
             <tbody className="bg-white divide-y divide-slate-200">
               {posts && posts.length > 0 ? (
                 posts.map((post) => (
-                  <tr key={post.id}>
+                  <tr key={post._id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
@@ -239,7 +239,7 @@ export default function Admin() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/admin/edit/${post.id}`}>
+                        <Link href={`/admin/edit/${post._id}`}>
                           <Button variant="ghost" size="sm">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -247,7 +247,7 @@ export default function Admin() {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleDelete(post.id, post.title)}
+                          onClick={() => handleDelete(post._id, post.title)}
                           className="text-red-600 hover:text-red-900"
                           disabled={deletePostMutation.isPending}
                         >

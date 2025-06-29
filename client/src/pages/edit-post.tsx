@@ -21,7 +21,7 @@ export default function EditPost() {
   const { toast } = useToast();
   const [content, setContent] = useState("");
 
-  const postId = params?.id ? parseInt(params.id) : null;
+  const postId = params?.id || null;
 
   const { data: post, isLoading, error } = useQuery<Post>({
     queryKey: ["/api/admin/posts", postId],
