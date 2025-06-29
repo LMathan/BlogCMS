@@ -1,15 +1,11 @@
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
-
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = "mongodb+srv://admin:mathan1434@cluster0.7nqge.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 export const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(MONGODB_URI!); // Add "!" if using TypeScript and you're sure it's defined
+      await mongoose.connect(MONGODB_URI);
       console.log('Connected to MongoDB');
     }
   } catch (error) {
