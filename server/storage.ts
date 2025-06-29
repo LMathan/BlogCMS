@@ -73,11 +73,17 @@ export class DatabaseStorage implements IStorage {
       title: post.title,
       slug: post.slug,
       content: post.content,
-      excerpt: post.excerpt || undefined,
+      excerpt: post.excerpt || this.generateExcerpt(post.content),
       published: post.published,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
     }));
+  }
+
+  private generateExcerpt(content: string): string {
+    // Strip HTML tags and get first 150 characters
+    const stripped = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    return stripped.length > 150 ? stripped.substring(0, 150) + '...' : stripped;
   }
 
   async getPostBySlug(slug: string): Promise<Post | undefined> {

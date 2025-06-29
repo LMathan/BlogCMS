@@ -67,7 +67,7 @@ export default function Home() {
         {posts && posts.length > 0 ? (
           <ul className="divide-y divide-slate-200">
             {posts.map((post) => (
-              <li key={post.id}>
+              <li key={post._id}>
                 <PostCard post={post} />
               </li>
             ))}
